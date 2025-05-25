@@ -1,21 +1,104 @@
 package soccer
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/gorilla/mux"
+	_ "github.com/mattn/go-sqlite3"
 )
+
+// Player struct is used to store the player's information in the database
+type Player struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Goals     int       `json:"goals"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+var db *sql.DB
+
+// InitDatabase initializes the SQLite database and creates the players table
+func InitDatabase(dbPath string) error {
+	var err error
+	db, err = sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %v", err)
+	}
+
+	// Testing connectino by pinging the database, if it fails then the database is not connected
+	if err = db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %v", err)
+	}
+
+	// create the players table if it doesn't exist
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS players (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT UNIQUE NOT NULL,
+		goals INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+	// name is the player's name and is unique so we can't have two players with the same name
+
+	_, err = db.Exec(createTableSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create table: %v", err)
+	}
+
+	log.Println("Database initialized successfully")
+	return nil
+}
+
+// SavePlayer saves or updates a player's goal count in the database
+func SavePlayer(name string, goals int) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// If the player already exists in the database we update their goals and updated_at time so we can keep track of when they last scored
+	// Problem is we are scraping the data again because we need to check if its updated so need to find a way to do this without scraping all the data again if its in database
+	updateSQL := `UPDATE players SET goals = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?`
+	result, err := db.Exec(updateSQL, goals, name)
+	if err != nil {
+		return fmt.Errorf("failed to update player: %v", err)
+	}
+
+	// checking if rows were affected, if not then the player is not in the database already so we need to INSERT them into players
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %v", err)
+	}
+
+	// If 0 rows were affected, that means the player is not in the database already so we need to INSERT them into players
+	if rowsAffected == 0 {
+		insertSQL := `INSERT INTO players (name, goals) VALUES (?, ?)`
+		_, err = db.Exec(insertSQL, name, goals)
+		if err != nil {
+			return fmt.Errorf("failed to insert player: %v", err)
+		}
+		log.Printf("Inserted new player: %s with %d goals", name, goals)
+	} else {
+		log.Printf("Updated player: %s with %d goals", name, goals)
+	}
+
+	return nil
+}
 
 func GetPlayer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	player := vars["player"]
+	var player string
+	player = vars["player"]
 
-	fmt.Fprintf(w, "You searched for %s", player)
+	fmt.Fprintf(w, "Searching for %s...\n", player)
 
 	c := colly.NewCollector(
 		colly.AllowURLRevisit(),
@@ -31,23 +114,27 @@ func GetPlayer(w http.ResponseWriter, r *http.Request) {
 
 	goals, err := GetPlayerGoals("https://fbref.com/en/search/search.fcgi?search=" + player)
 	if err != nil {
-		fmt.Println("Error getting player goals:", err)
+		fmt.Fprintf(w, "Error getting player goals: %v\n", err)
+		return
 	}
 
-	fmt.Println("Goals:", goals)
+	fmt.Printf("%s has scored %d goals\n", player, goals)
+	fmt.Fprintf(w, "%s has scored %d goals\n", player, goals)
+
+	// Saving player to database
+	err = SavePlayer(player, goals)
+	if err != nil {
+		fmt.Printf("Error saving player to database: %v\n", err)
+		fmt.Fprintf(w, "Error saving to database: %v\n", err)
+	} else {
+		fmt.Fprintf(w, "Player data saved to database successfully!\n")
+	}
 
 	c.OnScraped(func(r *colly.Response) {
 		fmt.Println("Finished", r.Request.URL)
 	})
 
-	DebugHTML("https://fbref.com/en/search/search.fcgi?search= " + player)
-
-	// c.Visit("https://fbref.com/en/search/search.fcgi?search= " + player)
-	// c.PostMultipart("https://fbref.com/en/search/search.fcgi?search= "+player, map[string][]byte{
-	// 	"search": []byte(player),
-	// })
 	c.Wait()
-
 }
 
 func GetPlayerGoals(url string) (int, error) {
@@ -58,6 +145,7 @@ func GetPlayerGoals(url string) (int, error) {
 	c := colly.NewCollector(
 		colly.AllowURLRevisit(),
 	)
+
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 	c.OnRequest(func(r *colly.Request) {
@@ -87,6 +175,7 @@ func GetPlayerGoals(url string) (int, error) {
 					} else {
 						found = true
 						fmt.Printf("Found total goals across all clubs: %s -> %d\n", goalsText, goals)
+
 					}
 				}
 			} else {
@@ -114,24 +203,24 @@ func GetPlayerGoals(url string) (int, error) {
 	return goals, parseErr
 }
 
-func DebugHTML(url string) {
-	c := colly.NewCollector()
-	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+// func DebugHTML(url string) {
+// 	c := colly.NewCollector()
+// 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-	// c.OnHTML("body", func(e *colly.HTMLElement) {
-	// 	fmt.Println("=== PAGE CONTENT ===")
-	// 	fmt.Println(e.Text[:500]) // First 500 characters
-	// 	fmt.Println("=== END CONTENT ===")
-	// })
+// 	// c.OnHTML("body", func(e *colly.HTMLElement) {
+// 	// 	fmt.Println("=== PAGE CONTENT ===")
+// 	// 	fmt.Println(e.Text[:500]) // First 500 characters
+// 	// 	fmt.Println("=== END CONTENT ===")
+// 	// })
 
-	c.OnHTML("td", func(e *colly.HTMLElement) {
-		if strings.Contains(e.Text, "goal") || e.Attr("data-stat") == "goals" {
-			fmt.Printf("Found TD: %s, data-stat: %s, class: %s\n",
-				e.Text, e.Attr("data-stat"), e.Attr("class"))
-		}
-	})
+// 	c.OnHTML("td", func(e *colly.HTMLElement) {
+// 		if strings.Contains(e.Text, "goal") || e.Attr("data-stat") == "goals" {
+// 			fmt.Printf("Found TD: %s, data-stat: %s, class: %s\n",
+// 				e.Text, e.Attr("data-stat"), e.Attr("class"))
+// 		}
+// 	})
 
-	c.Visit(url)
-	c.Wait()
+// 	c.Visit(url)
+// 	c.Wait()
 
-}
+// }
