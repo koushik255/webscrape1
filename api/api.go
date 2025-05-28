@@ -23,8 +23,33 @@ type Player struct {
 }
 
 
+// CORS middleware function
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		// handle "preflight" requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		// call the next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
+
+
 
 func getPlayerName(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
 	player := r.PathValue("player")
 	fmt.Fprintf(w,"Received request for player: %s",player)
 	fmt.Println(player)
@@ -46,7 +71,7 @@ func getAllPlayersFromDb(db *sql.DB) ([]Player,error){
 			return nil, fmt.Errorf("Error: %w",err)
 		}
 		players = append(players,p)
-	} 
+	 } 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("ERROR %w",err)
 	}
@@ -58,6 +83,14 @@ func getAllPlayersFromDb(db *sql.DB) ([]Player,error){
 //create handler func since takes params
 func makegetAllPlayersHandler(db *sql.DB) http.HandlerFunc{
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers directly in the handler
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		// Set content type
+		w.Header().Set("Content-Type", "application/json")
+
 		allPlayers, err := getAllPlayersFromDb(db)
 		if err != nil {
 			log.Println("Error getting players from db",err)
@@ -93,7 +126,7 @@ func main() {
 
 	allPlayers, err := getAllPlayersFromDb(db)
 	if err != nil {
-		log.Printf("Error getting all players : %v\n,err")
+		log.Printf("Error getting all players : %v\n",err)
 		return
 	} else {
 		for _,p := range allPlayers {
@@ -107,9 +140,12 @@ func main() {
 	//routes
 	router.HandleFunc("GET /players",getAllPlayersHandler)
 	router.HandleFunc("GET /players/{player}", getPlayerName)
+
+	corsRouter := corsMiddleware(router)
+
 server := http.Server {
 	Addr: ":3000",
-	Handler: router,
+	Handler: corsRouter,
 }
 
 
