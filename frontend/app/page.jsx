@@ -53,6 +53,13 @@ export default function Home() {
                       {player.name.charAt(0)}
                     </div>
                     <div>
+         <img
+        src="https://fbref.com/req/202302030/images/headshots/d70ce98e_2022.jpg"
+        alt="Player Headshot"
+        style={{ width: "200px", height: "auto" }}
+      />
+    </div>
+                    <div>
                       <h2 className="text-xl font-semibold text-gray-800">
                         {player.name}
                       </h2>
@@ -65,6 +72,10 @@ export default function Home() {
                       <span className="text-gray-700 font-medium">Goals:</span>
                       <span className="bg-blue-600 text-white px-3 py-1 rounded-full font-bold">
                         {player.goals}
+                      </span>
+                      <span className="text-gray-700 font-medium">Assists:</span>
+                      <span className="bg-blue-600 text-white px-3 py-1 rounded-full font-bold">
+                        {player.assists}
                       </span>
                     </div>
                   </div>
