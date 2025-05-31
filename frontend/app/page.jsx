@@ -54,7 +54,7 @@ export default function Home() {
                     </div>
                     <div>
          <img
-        src="https://fbref.com/req/202302030/images/headshots/d70ce98e_2022.jpg"
+        src={player.photo}
         alt="Player Headshot"
         style={{ width: "200px", height: "auto" }}
       />

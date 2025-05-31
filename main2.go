@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Init the database
-	dbPath := "./players2.db" // SQLite database file will be created in current directory
+	dbPath := "./players3.db" // SQLite database file will be created in current directory
 	err := soccer.InitDatabase(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)

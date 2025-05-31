@@ -19,6 +19,7 @@ type Player struct {
 	Name      string    `json:"name"`
 	Goals     int       `json:"goals"`
 	Assists   int       `json:"assists"`
+	Photo     string    `json:"photo"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -58,7 +59,7 @@ func getPlayerName(w http.ResponseWriter, r *http.Request) {
 
 
 func getAllPlayersFromDb(db *sql.DB) ([]Player,error){
-	query := "SELECT id, name, goals,assists, created_at, updated_at FROM players "
+	query := "SELECT id, name, goals,assists,photo, created_at, updated_at FROM players "
 	rows,err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("Error : %w",err)
@@ -68,7 +69,7 @@ func getAllPlayersFromDb(db *sql.DB) ([]Player,error){
 	var players []Player
 	for rows.Next() {
 		var p Player 
-		if err := rows.Scan(&p.ID,&p.Name,&p.Goals,&p.Assists,&p.CreatedAt,&p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID,&p.Name,&p.Goals,&p.Assists,&p.Photo,&p.CreatedAt,&p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("Error: %w",err)
 		}
 		players = append(players,p)
@@ -110,7 +111,7 @@ func makegetAllPlayersHandler(db *sql.DB) http.HandlerFunc{
 
 func main() {
 
-	db, err := sql.Open("sqlite3", "/home/koushikk/go/src/chill/soccerthing/players2.db")
+	db, err := sql.Open("sqlite3", "/home/koushikk/go/src/chill/soccerthing/players3.db")
 	if err != nil {
 		log.Fatalf("Error opening database %v",err)
 	}
@@ -131,7 +132,7 @@ func main() {
 		return
 	} else {
 		for _,p := range allPlayers {
-			fmt.Printf("ID: %d, Name: %s, Total Goals: %d total assists : %d\n",p.ID,p.Name,p.Goals,p.Assists)
+			fmt.Printf("ID: %d, Name: %s, Total Goals: %d total assists :%d  photo link  %s\n",p.ID,p.Name,p.Goals,p.Assists,p.Photo)
 		}
 	}
 

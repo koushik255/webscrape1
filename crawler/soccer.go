@@ -20,6 +20,7 @@ type Player struct {
 	Name      string    `json:"name"`
 	Goals     int       `json:"goals"`
 	Assists   int       `json:"assists"`
+	Photo     string     `json:"photo"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -46,6 +47,7 @@ func InitDatabase(dbPath string) error {
 		name TEXT UNIQUE NOT NULL,
 		goals INTEGER NOT NULL DEFAULT 0,
 		assists INTERGER NOT NULL DEFAULT 0,
+		photo TEXT UNIQUE NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
@@ -61,7 +63,7 @@ func InitDatabase(dbPath string) error {
 }
 
 // SavePlayer saves or updates a player's goal count in the database
-func SavePlayer(name string, goals int, assists int) error {
+func SavePlayer(name string, goals int, assists int,photo string) error {
 	if db == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -75,8 +77,8 @@ func SavePlayer(name string, goals int, assists int) error {
 	// 	return fmt.Errorf("failed to update player: %v", err)
 	// }
 	
-	updateSQL := `UPDATE players SET goals = ?, assists = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?`
-	result, err := db.Exec(updateSQL, goals, assists, name)
+	updateSQL := `UPDATE players SET goals = ?, assists = ?, photo = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?`
+	result, err := db.Exec(updateSQL, goals, assists,photo, name)
 	if err != nil {
     	return fmt.Errorf("failed to update player: %v", err)
 	}
@@ -90,14 +92,14 @@ func SavePlayer(name string, goals int, assists int) error {
 
 	// If 0 rows were affected, that means the player is not in the database already so we need to INSERT them into players
 	if rowsAffected == 0 {
-		insertSQL := `INSERT INTO players (name, goals,assists) VALUES (?, ?,?)`
-		_, err = db.Exec(insertSQL, name, goals,assists)
+		insertSQL := `INSERT INTO players (name, goals,assists,photo) VALUES (?, ?,?,?)`
+		_, err = db.Exec(insertSQL, name, goals,assists,photo)
 		if err != nil {
 			return fmt.Errorf("failed to insert player: %v", err)
 		}
-		log.Printf("Inserted new player: %s with %d goals and assists %d", name, goals,assists)
+		log.Printf("Inserted new player: %s with %d goals and assists %d photolink %s", name, goals,assists,photo)
 	} else {
-		log.Printf("Updated player: %s with %d goals and %d assists", name, goals, assists)
+		log.Printf("Updated player: %s with %d goals and %d assists photolink %s", name, goals, assists,photo)
 	}
 
 	return nil
@@ -162,7 +164,7 @@ func GetPlayer(w http.ResponseWriter, r *http.Request) {
 
 
 	// Saving player to database
-	err = SavePlayer(player, goals,assists)
+	err = SavePlayer(player, goals,assists,photo)
 	if err != nil {
 		fmt.Printf("Error saving player to database: %v\n", err)
 		fmt.Fprintf(w, "Error saving to database: %v\n", err)
@@ -346,7 +348,6 @@ func getPlayerPhoto(url string, name string) (string,error) {
     if src == "" {
         return "", fmt.Errorf("image not found for player: %s", player)
     }
-
     return src, nil
 }
 
@@ -371,6 +372,7 @@ func DebugHTML(url string) {
 	})
 
 	c.Visit(url)
-	c.Wait()
+	c.Wait()    
+
 
 }
