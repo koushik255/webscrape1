@@ -190,6 +190,9 @@ func GetPlayerGoals(url string) (int, error) {
 
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+
+	
+
 	c.OnRequest(func(r *colly.Request) {
 		log.Println("Visiting", r.URL.String())
 	})
@@ -257,6 +260,10 @@ func GetPlayerAssists(url string) (int, error) {
 
 	c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+	//set up the proxy
+    
+	
+   
 	c.OnRequest(func(r *colly.Request) {
 		log.Println("Visiting", r.URL.String())
 	})
@@ -332,6 +339,10 @@ func getPlayerPhoto(url string, name string) (string,error) {
 
 		c.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 		// Replace "Bukayo Saka headshot" with the actual alt text you want to match
+		 // set up the proxy
+		 //set up the proxy
+    
+    
    		c.OnHTML(selector, func(e *colly.HTMLElement) {
         src = e.Attr("src")
         fmt.Printf("Image src for %s: %s\n", player, src)

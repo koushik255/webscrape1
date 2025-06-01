@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
+1
 export default function Home() {
   const [players, setPlayers] = useState([]);
+  const [player, setPlayer] = useState ([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -25,6 +26,11 @@ export default function Home() {
         setIsLoading(false);
       });
   }, []);
+
+ 
+
+
+
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-gray-50">
